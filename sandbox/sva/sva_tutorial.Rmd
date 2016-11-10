@@ -1,0 +1,127 @@
+---
+title: "SVA Tutorial"
+author: "Nicholas Cullen"
+date: "11/7/2016"
+output: html_document
+---
+# Introduction
+
+This is a tutorial for using the SVA package in R, which is meant to reduce batch effects in sample data.
+
+```{r imports, warning=FALSE,message=FALSE}
+library(sva)
+library(bladderbatch)
+library(pamr)
+library(limma)
+
+data(bladderdata)
+```
+
+# Setting up Data
+The first step is to properly format the data into the correct style of matrices, etc. The data should be (pxn) where n is samples and p is features. Note this is the transpose of how we typically view matrices. 
+
+There are two types of variables apart from the expression (i.e. neuroimaging) data:
+  
+  - variables of interest : e.g. behavioral or task scores
+  - adjustment variables : e.g. age, sex, scan site, etc.
+
+SVA requires that two model matrices be made: the "full model" and the "null model". The null model includes terms for all the adjustment variables but not the variables of interest. The full model includes both the adjustment variables and the variables of interest. 
+
+The idea is that you are trying to analyze the association between the variables of interest (e.g. behavioral data) and the expression data (e.g. neuroimaging data), while adjusting for the adjustment variables (e.g. scan site).
+
+
+# An Example with SVA
+In this example from the SVA package, we will use the "bladder cancer study", whose variable of interest is cancer status. That is, we want to find the association between
+gene expression and cancer status. To begin, we assume no adjustment variables.
+
+## Setting up Data
+```{r load_bladder, warning=FALSE, message=FALSE}
+# load the data
+pheno <- pData(bladderEset) # phenotype data (includes adj vars and var of interest)
+edata <- exprs(bladderEset) # expression data
+
+# create full model matrix -> includes both adjustment and variables of interest (cancer)
+mod <- model.matrix(~as.factor(cancer), data=pheno)
+# create null model -> only includes adjustment variables
+# note we are not including any adjustment variables here, so just include intercept
+mod0 <- model.matrix(~1, data=pheno)
+```
+
+Now that we have the full and null models, we can apply the SVA function.
+
+## Applying sva function to estimate batch and other artifacts
+The sva function first identifies the number of latent factors that need to be estimated. You can supply this number yourself with the `n.sv` argument, or estimate it using the `num.sv` function.
+
+```{r sva}
+# estimate number of latent factors
+n.sv <- num.sv(edata, mod, method="leek")
+n.sv
+
+# apply sva function to estimate surrogate variables
+svobj <- sva(edata,mod,mod0,n.sv=n.sv)
+```
+The `sva` function returns a list with four components:
+  - `sv` : matrix whose columns correspond to estimated surrogate variables (can be used in downstream analysis)
+  - `pprob.gam` : posterior probability that each gene is associated w/ one or more latent variables
+  - `pprob.b` : posterior probability that each gene is associated w/ the variables of interest
+  - `n.sv` : number of surrogate variables estimated by the sva
+
+We can calculate the F-test p-values for differential expression with respect to cancer status, without adjusting for surrogate variables, then adjust them, and calculate the number which are significant (?).
+
+```{r pvals}
+p_values <- f.pvalue(edata, mod, mod0)
+q_values <- p.adjust(p_values, method="BH")
+mean(q_values < 0.05) # percent of genes that are strongly differentially expressed
+```
+
+We can see that there are ~70% of genese which are strongly differentially expressed between cancer and healthy. This is way too high. In other words, we are identifying a large number of false positives - genes that aren't really differentially expressed between cancer and healthy, but it seems like they are because of batch effects.
+
+But since we have estimates for the latent surrogate variables, we can include them as adjustment variables and add them to be the full and null model. Then, we can compute the p- and q-values as before.
+
+```{r adjust}
+mod_sv  <- cbind(mod, svobj$sv)
+mod0_sv <- cbind(mod0, svobj$sv)
+p_values_sv <- f.pvalue(edata, mod_sv, mod0_sv)
+q_values    <- p.adjust(p_values_sv, method="BH")
+
+mean(q_values<0.05) # only gets 66% ... I don't know how that's better.
+```
+
+# An Example with ComBat
+While the `SVA` (surrogate variables analysis) function adjusts for latent effects that it estimates interally, the `ComBat` function actually adjusts for <b>known</b> batch effects using an empirical Bayesian framework. Thus, to use this method you must have a known batch variables (e.g. scan site) in your dataset.
+
+We try this on the same data:
+
+```{r combat}
+batch <- pheno$batch # get batch vector
+
+# create model matrices -> note, don't include batch (it's included in combat func)
+mod_combat <- model.matrix(~1,data=pheno)
+
+# apply combat
+combat_edata <- ComBat(dat=edata, batch=batch, mod=mod_combat,
+                       par.prior=TRUE, prior.plots = TRUE)
+```
+
+This returns an expression matrix with the same dimensions as the original dataset, but now it has been adjusted for batch. You can now performance significance directly on the adjusted data using the model matrix and the null model matrix as before:
+
+```{r combat_significance}
+p_vals_combat <- f.pvalue(combat_edata, mod, mod0)
+q_vals_combat <- p.adjust(p_vals_combat, method="BH")
+mean(q_vals_combat < 0.05) # finds 49% genes are differentially expressed
+
+```
+
+Note that you can also pass the argument `mean.only=TRUE` to the `ComBat` function in order to adjust for only the mean and not the variance of the batch effects across batches. This can be helpful when batch effects are mild or where variances are expected to be different across batches for some reason.
+
+You can also use non-parametric prior distribution for the error - something that apparently might lead to better results : `par.prior=FALSE`.
+
+
+# Discussion
+There is also <b>supervised sva</b> where one can set the probability that a gene (e.g. voxel or regional thickness) is affected by the batch (e.g. scan site) but NOT by the group variable (e.g. depression). It might be interesting to find the probability vector which maximizes a CCA or prediction task, thereby identifying the regions which are most heavily affected by batch but not by group. Then, you could throw those variables out or adjust accordingly.
+
+There is also recent work that can use ComBat to adjust for batch effects while also taking into account a "gold standard" batch. This performs better than traditional ComBat, but it's unclear to me what the gold standard batch would be in a neuroscience context.
+
+
+
+
