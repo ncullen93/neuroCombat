@@ -8,7 +8,7 @@ import numpy.linalg as la
 
 
 def neuroCombat(X, Y, batch_var, categorical_targets=None, numerical_targets=None,
-	y_feature_labels=None):
+	y_feature_labels=None, mask=None, save_dir=None):
 	"""
 	Run ComBat to correct for batch effects in neuroimaging data
 
@@ -67,6 +67,13 @@ def neuroCombat(X, Y, batch_var, categorical_targets=None, numerical_targets=Non
 				Y[:,i] = Y[:,i].astype('float32')
 			except:
 				pass
+
+	X_FROM_NEURO_DIR = False
+	if isinstance(X, str):
+		print 'Loading images from directory'
+		X_FROM_NEURO_DIR = True
+		load_dir = X
+		X = load_imgs_from_dir(load_dir=X, mask=mask)
 	if isinstance(X, pd.DataFrame):
 		X = np.array(X,dtype='float32')
 
@@ -89,22 +96,33 @@ def neuroCombat(X, Y, batch_var, categorical_targets=None, numerical_targets=Non
 	info_dict['batch_info']			= [list(np.where(Y[:,batch_col]==idx)[0]) for idx in batch_levels]
 
 	# create design matrix
+	print 'Creating design matrix..'
 	design 					= make_design_matrix(Y, batch_col, cat_cols, num_cols)
 	
 	# standardize data across features
+	print 'Standardizing data across features..'
 	s_data, s_mean, v_pool 	= standardize_across_features(X, design, info_dict)
 	
 	# fit L/S models and find priors
+	print 'Fitting L/S model and finding priors..'
 	LS_dict 				= fit_LS_model_and_find_priors(s_data, design, info_dict)
 
 	# find parametric adjustments
+	print 'Finding parametric adjustments..'
 	gamma_star, delta_star 	= find_parametric_adjustments(s_data, LS_dict, info_dict)
 
 	# adjust data
+	print 'Final adjustment of data..'
 	bayes_data 				= adjust_data_final(s_data, design, gamma_star, delta_star, 
 												s_mean, v_pool, info_dict)
 
-	return np.array(bayes_data)
+	bayes_data = np.array(bayes_data)
+
+	if X_FROM_NEURO_DIR is True:
+		print 'Saving corrected images back to directory'
+		save_imgs_to_dir(data=bayes_data.T, mask=mask, load_dir=load_dir, save_dir=save_dir)
+	
+	return bayes_data
 
 def make_design_matrix(Y, batch_col, cat_cols, num_cols):
 	"""

@@ -54,6 +54,29 @@ NOTE: If you read in the Y dataset as a numpy array, you MUST include `y_feature
 		y_feature_labels=y_feature_labels)
 ```
 
+### Correcting from Directory of Nifti images
+The beauty of neuroCombat is that you can correct neuroimages without even loading them yourself. All that work is done for you, and all you have to do is give the directory to the set of images.
+
+Take this example, with a set of images found in the 'pbac/images' directory. We give the path to those images, the path to a Mask file, and the batch data. That's it. The corrected images will be save to the directory of your choice and will be of the same name as the originals but prefixed with 'corrected_'.
+
+```python
+
+	from neuroCombat.neuroCombat import neuroCombat
+
+	X_dir 	= 'images/'
+	mask 	= 'mask/mask.nii.gz'
+	# make random batch effect
+	Y 		= np.zeros((80,1))
+	Y[:20] 	= 1
+	Y[20:40]= 2
+	# y labels .. no confounds/targets
+	y_labels = np.array(['batch'])
+	batch_var = 'batch'
+
+	neuroCombat(X=X_dir, mask=mask,
+		Y=Y, y_feature_labels=y_labels,
+		batch_var='batch', save_dir='combat_images/')
+```
 
 ## Performance
 On the example above, we report the following:
