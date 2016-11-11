@@ -14,11 +14,11 @@ def neuroCombat(X, Y, batch_var, categorical_targets=None, numerical_targets=Non
 
 	Arguments
 	---------
-	X : a pandas data frame (or numpy array if included x_labels)
+	X : a pandas data frame or numpy array
 		- neuroimaging data
 		- shape = (features, samples)
 
-	Y : a pandas data frame (or numpy array if included y_labels)
+	Y : a pandas data frame (or numpy array if included y_feature_labels)
 		- demographic/phenotypic/behavioral/batch data 
 		- shape = (samples, features)
 	
@@ -33,6 +33,9 @@ def neuroCombat(X, Y, batch_var, categorical_targets=None, numerical_targets=Non
 	num_target_vars : string or list of strings
 		- variables which are numerical that you want to predict
 		- e.g. depression sub-scores
+
+	y_feature_labels : a list of strings
+		- column labels for Y dataset (must includes batch variable, target variables, etc)
 	"""
 	##############################
 	### CLEANING UP INPUT DATA ###
@@ -115,6 +118,7 @@ def make_design_matrix(Y, batch_col, cat_cols, num_cols):
 		for i in range(len(y)):
 			Y[i, y[i]] = 1.
 		return Y
+	
 	hstack_list = []
 
 	### batch one-hot ###
@@ -157,11 +161,8 @@ def standardize_across_features(X, design, info_dict):
 	return s_data, stand_mean, var_pooled
 
 def aprior(gamma_hat):
-	#print gamma_hat
 	m = np.mean(gamma_hat)
 	s2 = np.var(gamma_hat,ddof=1)
-	#print m
-	#print s2
 	return (2 * s2 +m**2) / float(s2)
 
 def bprior(gamma_hat):
@@ -183,10 +184,7 @@ def fit_LS_model_and_find_priors(s_data, design, info_dict):
 	gamma_hat = np.dot(np.dot(la.inv(np.dot(batch_design.T, batch_design)), batch_design.T), s_data.T)
 
 	delta_hat = []
-	#print s_data
-	#print s_data.shape
 	for i, batch_idxs in enumerate(batch_info):
-		#print np.var(s_data[:,batch_idxs],axis=1)[:10]
 		delta_hat.append(np.var(s_data[:,batch_idxs],axis=1,ddof=1))
 	
 	gamma_bar = np.mean(gamma_hat, axis=1) 
