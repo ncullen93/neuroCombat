@@ -5,10 +5,8 @@ from __future__ import division
 import pandas as pd
 import numpy as np
 import numpy.linalg as la
-from keras.utils import np_utils
 
-
-def neuro_combat(X, Y, batch_var, categorical_targets=None, numerical_targets=None,
+def neuroCombat(X, Y, batch_var, categorical_targets=None, numerical_targets=None,
 	y_feature_labels=None):
 	"""
 	Run ComBat to correct for batch effects in neuroimaging data
@@ -97,13 +95,13 @@ def make_design_matrix(Y, batch_var, categorical_targts, numerical_targets):
 	### batch one-hot ###
 	batch = np.array(Y[batch_var],dtype='int') # batch_vars
 	batch = batch - (np.min(batch) - 0) # min = zero
-	batch_onehot = np_utils.to_categorical(batch, len(np.unique(batch)))
+	batch_onehot = to_categorical(batch, len(np.unique(batch)))
 	hstack_list.append(batch_onehot)
 
 	### categorical one-hots ###
 	for cat_var in categorical_targets:
 		cat = np.unique(np.array(Y[cat_var]),return_inverse=True)[1]
-		cat_onehot = np_utils.to_categorical(cat, len(np.unique(cat)))[:,1:]
+		cat_onehot = to_categorical(cat, len(np.unique(cat)))[:,1:]
 		hstack_list.append(cat_onehot)
 
 	### numerical vectors ###
@@ -240,6 +238,13 @@ def adjust_data_final(s_data, design, gamma_star, delta_star, stand_mean, var_po
 
 	return bayesdata
 
+def to_categorical(y, nb_classes=None):
+	if not nb_classes:
+		nb_classes = np.max(y)+1
+	Y = np.zeros((len(y), nb_classes))
+	for i in range(len(y)):
+		Y[i, y[i]] = 1.
+	return Y
 
 if __name__=='__main__':
 	X = np.load('bladder-expr.npy')
@@ -249,6 +254,6 @@ if __name__=='__main__':
 	numerical_targets 	= ["age"]
 	batch_var 			= "batch"
 
-	result = neuro_combat(X=X, Y=Y, batch_var=batch_var,
+	result = neuroCombat(X=X, Y=Y, batch_var=batch_var,
 		categorical_targets=categorical_targets, numerical_targets=numerical_targets,
 		y_feature_labels=y_feature_labels)
