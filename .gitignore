@@ -1,3 +1,5 @@
+sandbox/
+
 *.DS_Store
 *.pyc
 *.swp
