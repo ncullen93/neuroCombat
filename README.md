@@ -12,22 +12,48 @@ This repository contains the ComBat algorithm for correcting batch effects in ne
 	- `from neuroCombat.neuroCombat import neuroCombat`
 	- Now you can use the function
 
-## Example
+## Examples
+
+### Correcting from Pandas Dataframes
 ```python
+	import pandas as pd
+	from neuroCombat.neuroCombat import neuroCombat
+
+	pheno = pd.read_table('examples/sva/bladder-pheno.txt', index_col=0) # Y (cognitive) data
+	dat = pd.read_table('examples/sva/bladder-expr.txt', index_col=0) # X (imaging) data)
+	dat = dat.T
+
+	categorical_targets = ["cancer"]
+	numerical_targets 	= ["age"]
+	batch_var 			= "batch"
+
+	result = neuroCombat(X=dat, Y=pheno, batch_var=batch_var,
+		categorical_targets=categorical_targets, numerical_targets=numerical_targets)
+```
+
+
+
+### Correcting from Numpy Arrays
+NOTE: If you read in the Y dataset as a numpy array, you MUST include `y_feature_labels`, which is a numpy array (or python list) of strings containing the Y column labels.
+
+```python
+	import numpy as np
 	from neuroCombat.neuroCombat import neuroCombat
 
 	X = np.load('examples/sva/bladder-expr.npy')
 	X = X.T # neuroimaging people like our data to be shape = (samples, features)
 	Y = np.load('examples/sva/bladder-pheno.npy') # shape = (samples, features)
 	y_feature_labels = np.load('examples/sva/feature_labels.npy')
+
 	categorical_targets = ["cancer"]
 	numerical_targets 	= ["age"]
 	batch_var 			= "batch"
 
-	result = neuroCombat(X=X, Y=Y, batch_var=batch_var,
+	result1 = neuroCombat(X=X, Y=Y, batch_var=batch_var,
 		categorical_targets=categorical_targets, numerical_targets=numerical_targets,
 		y_feature_labels=y_feature_labels)
 ```
+
 
 ## Performance
 On the example above, we report the following:
