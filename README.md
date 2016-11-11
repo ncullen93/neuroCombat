@@ -5,9 +5,9 @@ This repository contains the ComBat algorithm for correcting batch effects in ne
 
 ## Example
 ```python
-	X = np.load('bladder-expr.npy')
-	Y = np.load('combat_py/bladder-pheno.npy')
-	y_feature_labels = np.load('combat_py/feature_labels.npy')
+	X = np.load('examples/sva/bladder-expr.npy')
+	Y = np.load('examples/sva/bladder-pheno.npy')
+	y_feature_labels = np.load('examples/sva/feature_labels.npy')
 	categorical_targets = ["cancer"]
 	numerical_targets 	= ["age"]
 	batch_var 			= "batch"
