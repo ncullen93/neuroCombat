@@ -1,10 +1,11 @@
 """
 ComBat for correcting batch effects in neuroimaging data
 """
-from __future__ import division
+#from __future__ import division
 import pandas as pd
 import numpy as np
 import numpy.linalg as la
+
 
 def neuroCombat(X, Y, batch_var, categorical_targets=None, numerical_targets=None,
 	y_feature_labels=None):
@@ -13,11 +14,11 @@ def neuroCombat(X, Y, batch_var, categorical_targets=None, numerical_targets=Non
 
 	Arguments
 	---------
-	X : a pandas data frame or numpy array
+	X : a pandas data frame (or numpy array if included x_labels)
 		- neuroimaging data
 		- shape = (features, samples)
 
-	Y : a pandas data frame (or numpy array if include y_feature_labels)
+	Y : a pandas data frame (or numpy array if included y_labels)
 		- demographic/phenotypic/behavioral/batch data 
 		- shape = (samples, features)
 	
@@ -33,6 +34,9 @@ def neuroCombat(X, Y, batch_var, categorical_targets=None, numerical_targets=Non
 		- variables which are numerical that you want to predict
 		- e.g. depression sub-scores
 	"""
+	##############################
+	### CLEANING UP INPUT DATA ###
+	##############################
 	if not isinstance(categorical_targets, list):
 		if categorical_targets is None:
 			categorical_targets = []
@@ -44,29 +48,43 @@ def neuroCombat(X, Y, batch_var, categorical_targets=None, numerical_targets=Non
 		else:
 			numerical_targets = [numerical_targets]
 
-	if isinstance(X, np.ndarray):
-		X = pd.DataFrame(X)
 	if isinstance(Y, np.ndarray):
 		assert (y_feature_labels is not None), 'Must include y_feature_labels w/ numpy array input'
 		Y = Y.astype('object')
-		for j in range(Y.shape[-1]):
+		for i in range(Y.shape[-1]):
 			try:
-				Y[:,j] = Y[:,j].astype('float64')
+				Y[:,i] = Y[:,i].astype('float32')
 			except:
 				pass
-		Y = pd.DataFrame(Y, columns=y_feature_labels)
-		
-	# create info dictionary
-	(batch_levels, sample_per_batch)= np.unique(Y[batch_var],return_counts=True)
+	elif isinstance(Y, pd.DataFrame):
+		y_feature_labels = np.array(Y.columns)
+		Y = np.array(Y, dtype='object') 
+		for i in range(Y.shape[-1]):
+			try:
+				Y[:,i] = Y[:,i].astype('float32')
+			except:
+				pass
+	if isinstance(X, pd.DataFrame):
+		X = np.array(X,dtype='float32')
+
+	##############################
+
+	# get column indices for relevant variables
+	batch_col 	= np.where(y_feature_labels==batch_var)[0][0]
+	cat_cols 	= [np.where(y_feature_labels==c_var)[0][0] for c_var in categorical_targets]
+	num_cols 	= [np.where(y_feature_labels==n_var)[0][0] for n_var in numerical_targets]
+
+	# create dictionary that stores batch info
+	(batch_levels, sample_per_batch)= np.unique(Y[:,batch_col],return_counts=True)
 	info_dict = {}
-	info_dict['batch_levels']		= batch_levels
+	info_dict['batch_levels']		= batch_levels.astype('int')
 	info_dict['n_batch'] 			= len(batch_levels)
-	info_dict['n_sample'] 			= Y.shape[0]
-	info_dict['sample_per_batch']	= sample_per_batch.astype('float32')
-	info_dict['batch_info']			= [list(np.where(Y[batch_var]==idx)[0]) for idx in batch_levels]
+	info_dict['n_sample'] 			= int(Y.shape[0])
+	info_dict['sample_per_batch']	= sample_per_batch.astype('int')
+	info_dict['batch_info']			= [list(np.where(Y[:,batch_col]==idx)[0]) for idx in batch_levels]
 
 	# create design matrix
-	design 					= make_design_matrix(Y, batch_var, categorical_targets, numerical_targets)
+	design 					= make_design_matrix(Y, batch_col, cat_cols, num_cols)
 	
 	# standardize data across features
 	s_data, s_mean, v_pool 	= standardize_across_features(X, design, info_dict)
@@ -83,34 +101,41 @@ def neuroCombat(X, Y, batch_var, categorical_targets=None, numerical_targets=Non
 
 	return np.array(bayes_data)
 
-def make_design_matrix(Y, batch_var, categorical_targts, numerical_targets):
+def make_design_matrix(Y, batch_col, cat_cols, num_cols):
 	"""
 	Return Matrix containing the following parts:
 		- one-hot matrix of batch variable (full)
 		- one-hot matrix for each categorical_targts (removing the first column)
 		- column for each numerical_targets
 	"""
+	def to_categorical(y, nb_classes=None):
+		if not nb_classes:
+			nb_classes = np.max(y)+1
+		Y = np.zeros((len(y), nb_classes))
+		for i in range(len(y)):
+			Y[i, y[i]] = 1.
+		return Y
 	hstack_list = []
 
 	### batch one-hot ###
-	batch = np.array(Y[batch_var],dtype='int') # batch_vars
+	batch = np.array(Y[:,batch_col], dtype='int') # batch_vars
 	batch = batch - (np.min(batch) - 0) # min = zero
 	batch_onehot = to_categorical(batch, len(np.unique(batch)))
 	hstack_list.append(batch_onehot)
 
 	### categorical one-hots ###
-	for cat_var in categorical_targets:
-		cat = np.unique(np.array(Y[cat_var]),return_inverse=True)[1]
+	for cat_col in cat_cols:
+		cat = np.unique(np.array(Y[:,cat_col]),return_inverse=True)[1]
 		cat_onehot = to_categorical(cat, len(np.unique(cat)))[:,1:]
 		hstack_list.append(cat_onehot)
 
 	### numerical vectors ###
-	for num_var in numerical_targets:
-		num = np.array(Y[num_var])
+	for num_col in num_cols:
+		num = np.array(Y[:,num_col],dtype='float32')
 		num = num.reshape(num.shape[0],1)
 		hstack_list.append(num)
 
-	design = np.hstack(hstack_list).astype('int')
+	design = np.hstack(hstack_list)
 	return design
 
 def standardize_across_features(X, design, info_dict):
@@ -119,8 +144,8 @@ def standardize_across_features(X, design, info_dict):
 	sample_per_batch	= info_dict['sample_per_batch']
 
 	B_hat = np.dot(np.dot(la.inv(np.dot(design.T, design)), design.T), X.T)
-	grand_mean = np.dot((sample_per_batch/ n_sample).T, B_hat[:n_batch,:])
-	var_pooled = np.dot(((X - np.dot(design, B_hat).T)**2), np.ones((n_sample, 1)) / n_sample)
+	grand_mean = np.dot((sample_per_batch/ float(n_sample)).T, B_hat[:n_batch,:])
+	var_pooled = np.dot(((X - np.dot(design, B_hat).T)**2), np.ones((n_sample, 1)) / float(n_sample))
 
 	stand_mean = np.dot(grand_mean.T.reshape((len(grand_mean), 1)), np.ones((1, n_sample)))
 	tmp = np.array(design.copy())
@@ -132,16 +157,16 @@ def standardize_across_features(X, design, info_dict):
 	return s_data, stand_mean, var_pooled
 
 def aprior(gamma_hat):
-	#print np.array(gamma_hat)
-
-	m = gamma_hat.mean()
-	s2 = gamma_hat.var()
+	#print gamma_hat
+	m = np.mean(gamma_hat)
+	s2 = np.var(gamma_hat,ddof=1)
 	#print m
 	#print s2
-	return (2 * s2 +m**2) / s2
+	return (2 * s2 +m**2) / float(s2)
+
 def bprior(gamma_hat):
 	m = gamma_hat.mean()
-	s2 = gamma_hat.var()
+	s2 = np.var(gamma_hat,ddof=1)
 	return (m*s2+m**3)/s2
 
 def postmean(g_hat, g_bar, n, d_star, t2):
@@ -158,15 +183,14 @@ def fit_LS_model_and_find_priors(s_data, design, info_dict):
 	gamma_hat = np.dot(np.dot(la.inv(np.dot(batch_design.T, batch_design)), batch_design.T), s_data.T)
 
 	delta_hat = []
-	#print np.array(s_data)
+	#print s_data
 	#print s_data.shape
-
 	for i, batch_idxs in enumerate(batch_info):
-		#print np.array(s_data[batch_idxs].var(axis=1)[:10])
-		delta_hat.append(s_data[batch_idxs].var(axis=1))
-
-	gamma_bar = gamma_hat.mean(axis=1) 
-	t2 = gamma_hat.var(axis=1)
+		#print np.var(s_data[:,batch_idxs],axis=1)[:10]
+		delta_hat.append(np.var(s_data[:,batch_idxs],axis=1,ddof=1))
+	
+	gamma_bar = np.mean(gamma_hat, axis=1) 
+	t2 = np.var(gamma_hat,axis=1, ddof=1)
 
 	a_prior = list(map(aprior, delta_hat))
 	b_prior = list(map(bprior, delta_hat))
@@ -204,14 +228,14 @@ def find_parametric_adjustments(s_data, LS, info_dict):
 
 	gamma_star, delta_star = [], []
 	for i, batch_idxs in enumerate(batch_info):
-		temp = it_sol(s_data[batch_idxs], LS['gamma_hat'][i],
+		temp = it_sol(s_data[:,batch_idxs], LS['gamma_hat'][i],
 					LS['delta_hat'][i], LS['gamma_bar'][i], LS['t2'][i], 
 					LS['a_prior'][i], LS['b_prior'][i])
 
 		gamma_star.append(temp[0])
 		delta_star.append(temp[1])
 
-	return gamma_star, delta_star
+	return np.array(gamma_star), np.array(delta_star)
 
 def adjust_data_final(s_data, design, gamma_star, delta_star, stand_mean, var_pooled, info_dict):
 	sample_per_batch 	= info_dict['sample_per_batch']
@@ -229,29 +253,22 @@ def adjust_data_final(s_data, design, gamma_star, delta_star, stand_mean, var_po
 		dsq = np.sqrt(delta_star[j,:])
 		dsq = dsq.reshape((len(dsq), 1))
 		denom =  np.dot(dsq, np.ones((1, sample_per_batch[j])))
-		numer = np.array(bayesdata[batch_idxs] - np.dot(batch_design[batch_idxs,:], gamma_star).T)
+		numer = np.array(bayesdata[:,batch_idxs] - np.dot(batch_design[batch_idxs,:], gamma_star).T)
 
-		bayesdata[batch_idxs] = numer / denom
+		bayesdata[:,batch_idxs] = numer / denom
 
 	vpsq = np.sqrt(var_pooled).reshape((len(var_pooled), 1))
 	bayesdata = bayesdata * np.dot(vpsq, np.ones((1, n_sample))) + stand_mean
 
 	return bayesdata
 
-def to_categorical(y, nb_classes=None):
-	if not nb_classes:
-		nb_classes = np.max(y)+1
-	Y = np.zeros((len(y), nb_classes))
-	for i in range(len(y)):
-		Y[i, y[i]] = 1.
-	return Y
 
 if __name__=='__main__':
-	X = np.load('bladder-expr.npy')
-	Y = np.load('combat_py/bladder-pheno.npy')
-	y_feature_labels = np.load('combat_py/feature_labels.npy')
+	X = np.load('../examples/sva/bladder-expr.npy')
+	Y = np.load('../examples/sva/bladder-pheno.npy')
+	y_feature_labels = np.load('../examples/sva/feature_labels.npy')
 	categorical_targets = ["cancer"]
-	numerical_targets 	= ["age"]
+	numerical_targets 	= []
 	batch_var 			= "batch"
 
 	result = neuroCombat(X=X, Y=Y, batch_var=batch_var,
