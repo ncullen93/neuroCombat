@@ -15,9 +15,10 @@ This repository contains the ComBat algorithm for correcting batch effects in ne
 ## Example
 ```python
 	from neuroCombat.neuroCombat import neuroCombat
-	
+
 	X = np.load('examples/sva/bladder-expr.npy')
-	Y = np.load('examples/sva/bladder-pheno.npy')
+	X = X.T # neuroimaging people like our data to be shape = (samples, features)
+	Y = np.load('examples/sva/bladder-pheno.npy') # shape = (samples, features)
 	y_feature_labels = np.load('examples/sva/feature_labels.npy')
 	categorical_targets = ["cancer"]
 	numerical_targets 	= ["age"]

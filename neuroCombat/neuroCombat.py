@@ -70,6 +70,8 @@ def neuroCombat(X, Y, batch_var, categorical_targets=None, numerical_targets=Non
 	if isinstance(X, pd.DataFrame):
 		X = np.array(X,dtype='float32')
 
+	X = X.T # transpose data to make it (features, samples)... a weird genetics convention..
+
 	##############################
 
 	# get column indices for relevant variables
@@ -259,16 +261,3 @@ def adjust_data_final(s_data, design, gamma_star, delta_star, stand_mean, var_po
 	bayesdata = bayesdata * np.dot(vpsq, np.ones((1, n_sample))) + stand_mean
 
 	return bayesdata
-
-
-if __name__=='__main__':
-	X = np.load('../examples/sva/bladder-expr.npy')
-	Y = np.load('../examples/sva/bladder-pheno.npy')
-	y_feature_labels = np.load('../examples/sva/feature_labels.npy')
-	categorical_targets = ["cancer"]
-	numerical_targets 	= []
-	batch_var 			= "batch"
-
-	result = neuroCombat(X=X, Y=Y, batch_var=batch_var,
-		categorical_targets=categorical_targets, numerical_targets=numerical_targets,
-		y_feature_labels=y_feature_labels)
