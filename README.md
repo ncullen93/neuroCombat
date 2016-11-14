@@ -3,6 +3,28 @@
 ## Overview
 This repository contains the ComBat algorithm for correcting batch effects in neuroimaging (or microarray) data. This code runs ~10-50 times faster than the R version, and is incredibly simplified in that you do NOT have to create any design matrices, etc. All you have to do is pass in TWO numpy arrays or pandas DataFrames (the dataset to correct, and the dataset containing the batch/confound/target variables).
 
+Combining the ease-of-use, the ability to read neuroimages directly, the significant computational speedup, and the Python language, neuroCombat should fulfill an important niche in the neuroscience community.
+
+## Correspondance to SVA (R) version of ComBat
+
+In SVA's version of ComBat, you might do the following to correct for dataset `X` while adjusting for covariates `Y$c1` and `Y$c2`:
+
+```R
+batch <- Y$batch
+model <- model.matrix(~ c1 + c2, data=Y)
+combat_data <- ComBat(dat=X,batch=batch, mod=model)
+```
+
+In this Python version, you would do the following (assuming Y is a Pandas Dataframe with appropriate column labels):
+
+```Python
+categorical_targets = ['c1','c2']
+batch_var = 'batch'
+combat_data = neuroCombat(X=X, Y=Y, batch_var=batch_var, categorical_targets=categorical_targets)
+```
+
+As you see, there is no need for a model matrix. As we will see below, there is also the possibility of reading in neuroimages (e.g. in raw Nifti format) from a file directory. 
+
 ## Installation
 1. Download zipped repository
 2. Unpack
@@ -19,8 +41,8 @@ This repository contains the ComBat algorithm for correcting batch effects in ne
 	import pandas as pd
 	from neuroCombat.neuroCombat import neuroCombat
 
-	pheno = pd.read_table('examples/sva/bladder-pheno.txt', index_col=0) # Y (cognitive) data
-	dat = pd.read_table('examples/sva/bladder-expr.txt', index_col=0) # X (imaging) data)
+	pheno = pd.read_table('examples/bladder/bladder-pheno.txt', index_col=0) # Y (cognitive) data
+	dat = pd.read_table('examples/bladder/bladder-expr.txt', index_col=0) # X (imaging) data)
 	dat = dat.T
 
 	categorical_targets = ["cancer"]
@@ -40,9 +62,9 @@ NOTE: If you read in the Y dataset as a numpy array, you MUST include `y_feature
 	import numpy as np
 	from neuroCombat.neuroCombat import neuroCombat
 
-	X = np.load('examples/sva/bladder-expr.npy')
+	X = np.load('examples/bladder/bladder-expr.npy')
 	X = X.T # neuroimaging people like our data to be shape = (samples, features)
-	Y = np.load('examples/sva/bladder-pheno.npy') # shape = (samples, features)
+	Y = np.load('examples/bladder/bladder-pheno.npy') # shape = (samples, features)
 	y_feature_labels = np.load('examples/sva/feature_labels.npy')
 
 	categorical_targets = ["cancer"]
