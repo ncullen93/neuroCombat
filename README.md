@@ -101,10 +101,8 @@ Take this example, with a set of T1 images found in the 'pbac/images' directory.
 ```
 
 ## Performance
-On the example above, we report the following:
+On the bladder example above, we report the following:
 
 - Combat.py repository (not mine): ~0.6s
 - R's SVA package : ~10s
 - neuroCombat repository (mine): ~0.1 s
-
-So, Combat.py repository reports ~ 24 times speed on the R version, and we report ~ 6 times speed speedup on the Combat.py version. This means ~ 150 time speedup on the R version. This margin gets larger as the dataset gets larger.
