@@ -5,6 +5,9 @@ This repository contains the ComBat algorithm for correcting batch effects in ne
 
 Combining the ease-of-use, the ability to read neuroimages directly, the significant computational speedup, and the Python language, neuroCombat should fulfill an important niche in the neuroscience community.
 
+To note, if you need to read a certain type of neuroimage (e.g. fMRI) that is not supported yet, you can simply write a description of the data and submit an <b>Issue</b> and I'll implement it.
+
+
 ## Correspondance to SVA (R) version of ComBat
 
 <b> The most significant difference between the SVA and neuroCombat algorithms is that the neuroCombat version accepts input data X of shape (n_samples, n_features) while SVA accepts (n_features, n_samples).</b>
