@@ -1,7 +1,7 @@
 # neuroCombat
 
 ## Overview
-This repository contains the ComBat algorithm for correcting batch effects in neuroimaging (or microarray) data. This code runs ~150 times faster than the R version, and is incredibly simplified in that you do NOT have to create any design matrices, etc. All you have to do is pass in TWO numpy arrays or pandas DataFrames (the dataset to correct, and the dataset containing the batch/confound/target variables).
+This repository contains the ComBat algorithm for correcting batch effects in neuroimaging (or microarray) data. This code runs ~10-50 times faster than the R version, and is incredibly simplified in that you do NOT have to create any design matrices, etc. All you have to do is pass in TWO numpy arrays or pandas DataFrames (the dataset to correct, and the dataset containing the batch/confound/target variables).
 
 ## Installation
 1. Download zipped repository
