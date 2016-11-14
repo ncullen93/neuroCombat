@@ -7,6 +7,8 @@ Combining the ease-of-use, the ability to read neuroimages directly, the signifi
 
 ## Correspondance to SVA (R) version of ComBat
 
+<b> The most significant difference between the SVA and neuroCombat algorithms is that the neuroCombat version accepts input data X of shape (n_samples, n_features) while SVA accepts (n_features, n_samples).</b>
+
 In SVA's version of ComBat, you might do the following to correct for dataset `X` while adjusting for covariates `Y$c1` and `Y$c2`:
 
 ```R
