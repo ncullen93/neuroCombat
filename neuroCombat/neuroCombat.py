@@ -122,7 +122,7 @@ def neuroCombat(X, Y, batch_var, categorical_targets=None, numerical_targets=Non
 		print 'Saving corrected images back to directory'
 		save_imgs_to_dir(data=bayes_data.T, mask=mask, load_dir=load_dir, save_dir=save_dir)
 	
-	return bayes_data
+	return bayes_data.T
 
 def make_design_matrix(Y, batch_col, cat_cols, num_cols):
 	"""
