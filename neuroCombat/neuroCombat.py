@@ -6,8 +6,10 @@ import pandas as pd
 import numpy as np
 import numpy.linalg as la
 
+import neuroimage_process as nip
 
-def neuroCombat(X, Y, batch_var, categorical_targets=None, numerical_targets=None,
+
+def neuroCombat(X, Y, batch_var, categorical_covars=None, numerical_covars=None,
 	y_feature_labels=None, mask=None, save_dir=None):
 	"""
 	Run ComBat to correct for batch effects in neuroimaging data
@@ -40,16 +42,16 @@ def neuroCombat(X, Y, batch_var, categorical_targets=None, numerical_targets=Non
 	##############################
 	### CLEANING UP INPUT DATA ###
 	##############################
-	if not isinstance(categorical_targets, list):
-		if categorical_targets is None:
-			categorical_targets = []
+	if not isinstance(categorical_covars, list):
+		if categorical_covars is None:
+			categorical_covars = []
 		else:
-			categorical_targets = [categorical_targets]
-	if not isinstance(numerical_targets, list):
-		if numerical_targets is None:
-			numerical_targets = []
+			categorical_covars = [categorical_covars]
+	if not isinstance(numerical_covars, list):
+		if numerical_covars is None:
+			numerical_covars = []
 		else:
-			numerical_targets = [numerical_targets]
+			numerical_covars = [numerical_covars]
 
 	if isinstance(Y, np.ndarray):
 		assert (y_feature_labels is not None), 'Must include y_feature_labels w/ numpy array input'
@@ -72,8 +74,7 @@ def neuroCombat(X, Y, batch_var, categorical_targets=None, numerical_targets=Non
 	if isinstance(X, str):
 		print 'Loading images from directory'
 		X_FROM_NEURO_DIR = True
-		load_dir = X
-		X = load_imgs_from_dir(load_dir=X, mask=mask)
+		X = nip.load_imgs_from_dir(load_dir=X, mask=mask)
 	if isinstance(X, pd.DataFrame):
 		X = np.array(X,dtype='float32')
 
@@ -83,9 +84,11 @@ def neuroCombat(X, Y, batch_var, categorical_targets=None, numerical_targets=Non
 
 	# get column indices for relevant variables
 	batch_col 	= np.where(y_feature_labels==batch_var)[0][0]
-	cat_cols 	= [np.where(y_feature_labels==c_var)[0][0] for c_var in categorical_targets]
-	num_cols 	= [np.where(y_feature_labels==n_var)[0][0] for n_var in numerical_targets]
+	cat_cols 	= [np.where(y_feature_labels==c_var)[0][0] for c_var in categorical_covars]
+	num_cols 	= [np.where(y_feature_labels==n_var)[0][0] for n_var in numerical_covars]
 
+	# conver batch col to integer
+	Y[:,batch_col] = np.unique(Y[:,batch_col],return_inverse=True)[-1]
 	# create dictionary that stores batch info
 	(batch_levels, sample_per_batch)= np.unique(Y[:,batch_col],return_counts=True)
 	info_dict = {}
@@ -129,7 +132,7 @@ def make_design_matrix(Y, batch_col, cat_cols, num_cols):
 	Return Matrix containing the following parts:
 		- one-hot matrix of batch variable (full)
 		- one-hot matrix for each categorical_targts (removing the first column)
-		- column for each numerical_targets
+		- column for each numerical_covars
 	"""
 	def to_categorical(y, nb_classes=None):
 		if not nb_classes:
@@ -142,8 +145,8 @@ def make_design_matrix(Y, batch_col, cat_cols, num_cols):
 	hstack_list = []
 
 	### batch one-hot ###
-	batch = np.array(Y[:,batch_col], dtype='int') # batch_vars
-	batch = batch - (np.min(batch) - 0) # min = zero
+	# convert batch column to integer in case it's string
+	batch = np.unique(Y[:,batch_col],return_inverse=True)[-1]
 	batch_onehot = to_categorical(batch, len(np.unique(batch)))
 	hstack_list.append(batch_onehot)
 

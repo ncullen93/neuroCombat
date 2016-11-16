@@ -81,7 +81,7 @@ NOTE: If you read in the Y dataset as a numpy array, you MUST include `y_feature
 		y_feature_labels=y_feature_labels)
 ```
 
-### Correcting from Directory of Nifti images
+### Correcting from directory of Structural Nifti images with One Mask
 The beauty of neuroCombat is that you can correct neuroimages without even loading them yourself. All that work is done for you, and all you have to do is give the directory to the set of images.
 
 Take this example, with a set of T1 images found in the 'pbac/images' directory. We give the path to those images, the path to a Mask file, and the batch data. That's it. The corrected images will be save to the directory of your choice and will be of the same name as the originals but prefixed with 'corrected_'.
@@ -103,6 +103,59 @@ Take this example, with a set of T1 images found in the 'pbac/images' directory.
 	neuroCombat(X=X_dir, mask=mask,
 		Y=Y, y_feature_labels=y_labels,
 		batch_var='batch', save_dir='combat_images/')
+```
+
+### Correcting from directory of Structural Nifti images with Individual Masks
+If every subject has their own masks, that's completely fine. Instead of passing in the path to a single Nifti mask file, simply pass in the mask directory.
+
+In this case, the images for each subject have their own directory which includes the masks. Note that when you pass in a value for the `save_dir` argument, then the ComBat-corrected images get re-masked and saved to that save directory in Nifti format. Otherwise, we return the corrected images (NOT re-masked) as an array.
+
+e.g:
+	images/
+		subject1/
+			t1.nii.gz
+			mask.nii.gz
+		subject2/
+			t1.nii.gz
+			mask.nii.gz
+		..
+```python
+	img_dir 	= 'T1/'
+	mask_dir 	= 'T1/'
+
+	# read in demographic data as usual
+	Y = pd.read_csv('subject_info/demographics.csv')
+	cat_covars 	= ['gender','group']
+	num_covars  = ['age']
+	batch 	= 'scanner'
+	save_dir= T1_combat'
+
+	neuroCombat(X=img_dir, mask=mask_dir, Y=Y, batch=batch, cat_covars=cat_covars,
+		num_covars=num_covars, save_dir=save_dir)
+```
+
+### Loading Images from directory as Quality Assurance
+If you want to make sure that your images are being loaded correctly, you can import the functionality which neuroCombat uses and load the images from directory yourself. Then, you can just pass in that data for the 'X' argument.
+
+```python
+	
+	from neuroCombat.neuroCombat import neuroCombat
+	from neuroCombat.neuroimage_process import load_imgs_from_dir
+
+	img_dir = 'T1/'
+	mask_dir = 'T1/'
+	# load the neuroimaging data from directory yourself
+	image_data = load_imgs_from_dir(img_dir, mask_dir)
+
+	# read in demographic data as usual
+	Y = pd.read_csv('subject_info/demographics.csv')
+	cat_covars 	= ['gender','group']
+	num_covars  = ['age']
+	batch 	= 'scanner'
+	save_dir= T1_combat'
+
+	combat_data = neuroCombat(X=image_data, Y=Y, batch=batch, cat_covars=cat_covars,
+		num_covars=num_covars)
 ```
 
 ## Performance
