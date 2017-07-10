@@ -2,16 +2,10 @@ sandbox/
 
 *.DS_Store
 *.pyc
-*.swp
-temp/*
-dist/*
-build/*
-keras/datasets/data/*
-keras/datasets/temp/*
-docs/site/*
-docs/theme/*
-tags
-Keras.egg-info
+
+*.egg-info
+__pycache__
+
 
 # test-related
 .coverage
