@@ -11,49 +11,53 @@ import numpy.linalg as la
 
 def neuroCombat(data,
                 covars,
-                batch_var,
-                categorical_covars=None,
-                numerical_covars=None):
+                batch_col,
+                discrete_cols=None,
+                continuous_cols=None):
     """
     Run ComBat to correct for batch effects in neuroimaging data
 
     Arguments
     ---------
     data : a pandas data frame or numpy array
-        neuroimaging data to correct with shape = (features, samples)
-        e.g. cortical thickness measurements, imaging voxels, eetc
+        neuroimaging data to correct with shape = (samples, features)
+        e.g. cortical thickness measurements, image voxels, etc
 
     covars : a pandas data frame w/ shape = (samples, features)
         demographic/phenotypic/behavioral/batch data 
         
-    batch_vars : string
+    batch_col : string
         - batch effect variable
         - e.g. scan site
 
-    categorical_covars : string or list of strings
+    discrete_cols : string or list of strings
         - variables which are categorical that you want to predict
         - e.g. binary depression or no depression
 
-    numerical_covars : string or list of strings
-        - variables which are numerical that you want to predict
+    continuous_cols : string or list of strings
+        - variables which are continous that you want to predict
         - e.g. depression sub-scores
+
+    Returns
+    -------
+    - A numpy array with the same shape as `data` which has now been ComBat-corrected
     """
     ##############################
     ### CLEANING UP INPUT DATA ###
     ##############################
-    if not isinstance(categorical_covars, (list,tuple)):
-        if categorical_covars is None:
-            categorical_covars = []
-        else:
-            categorical_covars = [categorical_covars]
-    if not isinstance(numerical_covars, (list,tuple)):
-        if numerical_covars is None:
-            numerical_covars = []
-        else:
-            numerical_covars = [numerical_covars]
-
     if not isinstance(covars, pd.DataFrame):
-        raise ValueError('covars argument must be pandas dataframe')
+        raise ValueError('covars must be pandas datafrmae -> try: covars = pandas.DataFrame(covars)')
+
+    if not isinstance(discrete_cols, (list,tuple)):
+        if discrete_cols is None:
+            discrete_cols = []
+        else:
+            discrete_cols = [discrete_cols]
+    if not isinstance(continuous_cols, (list,tuple)):
+        if continuous_cols is None:
+            continuous_cols = []
+        else:
+            continuous_cols = [continuous_cols]
 
     covar_labels = np.array(covars.columns)
     covars = np.array(covars, dtype='object') 
@@ -65,26 +69,26 @@ def neuroCombat(data,
 
     if isinstance(data, pd.DataFrame):
         data = np.array(data, dtype='float32')
-
     data = data.T # transpose data to make it (features, samples)... a weird genetics convention..
 
     ##############################
 
     # get column indices for relevant variables
-    batch_col   = np.where(covar_labels==batch_var)[0][0]
-    cat_cols    = [np.where(covar_labels==c_var)[0][0] for c_var in categorical_covars]
-    num_cols    = [np.where(covar_labels==n_var)[0][0] for n_var in numerical_covars]
+    batch_col = np.where(covar_labels==batch_col)[0][0]
+    cat_cols = [np.where(covar_labels==c_var)[0][0] for c_var in discrete_cols]
+    num_cols = [np.where(covar_labels==n_var)[0][0] for n_var in continuous_cols]
 
     # conver batch col to integer
     covars[:,batch_col] = np.unique(covars[:,batch_col],return_inverse=True)[-1]
     # create dictionary that stores batch info
-    (batch_levels, sample_per_batch)= np.unique(covars[:,batch_col],return_counts=True)
-    info_dict = {}
-    info_dict['batch_levels'] = batch_levels.astype('int')
-    info_dict['n_batch'] = len(batch_levels)
-    info_dict['n_sample'] = int(covars.shape[0])
-    info_dict['sample_per_batch'] = sample_per_batch.astype('int')
-    info_dict['batch_info'] = [list(np.where(covars[:,batch_col]==idx)[0]) for idx in batch_levels]
+    (batch_levels, sample_per_batch) = np.unique(covars[:,batch_col],return_counts=True)
+    info_dict = {
+        'batch_levels': batch_levels.astype('int'),
+        'n_batch': len(batch_levels),
+        'n_sample': int(covars.shape[0]),
+        'sample_per_batch': sample_per_batch.astype('int'),
+        'batch_info': [list(np.where(covars[:,batch_col]==idx)[0]) for idx in batch_levels]
+    }
 
     # create design matrix
     print('Creating design matrix..')
@@ -116,7 +120,7 @@ def make_design_matrix(Y, batch_col, cat_cols, num_cols):
     Return Matrix containing the following parts:
         - one-hot matrix of batch variable (full)
         - one-hot matrix for each categorical_targts (removing the first column)
-        - column for each numerical_covars
+        - column for each continuous_cols
     """
     def to_categorical(y, nb_classes=None):
         if not nb_classes:

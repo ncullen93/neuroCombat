@@ -1,4 +1,3 @@
 from __future__ import absolute_import
 
-from . import neuroCombat
-from . import neuroimage_process
+from .neuroCombat import neuroCombat
