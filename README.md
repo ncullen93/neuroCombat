@@ -5,7 +5,11 @@ This repository contains the ComBat algorithm for correcting batch effects in ne
 
 Combining the ease-of-use, the ability to read neuroimages directly, the significant computational speedup, and the Python language, neuroCombat should fulfill an important niche in the neuroscience community.
 
-To note, if you need to read a certain type of neuroimage (e.g. fMRI) that is not supported yet, you can simply write a description of the data and submit an <b>Issue</b> and I'll implement it.
+## Citation
+If you use this code in your study or analysis, we would sincerely appreciate if you
+cited the following:
+
+Fortin, J. P., N. Cullen, Y. I. Sheline, W. D. Taylor, I. Aselcioglu, P. A. Cook, P. Adams, C. Cooper, M. Fava, P. J. McGrath, M. McInnis, M. L. Phillips, M. H. Trivedi, M. M. Weissman and R. T. Shinohara (2017). "Harmonization of cortical thickness measurements across scanners and sites." Neuroimage 167: 104-120.
 
 
 ## Installation
